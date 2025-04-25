@@ -5,40 +5,37 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { Color, Fog, Vector3 } from 'three';
 import { PerspectiveCamera } from '@react-three/drei';
 
-// Expanded color palette with subtle variations
 const COLORS = {
 	background: '#000',
 	light: '#ffe0b3',
 	lines: ['#19011a', '#5c4cbf', '#4f67ff', '#ffebd8', '#ffb366', '#ff7f00'],
 };
 
-// Configuration
 const LINE_WIDTH = 1.0;
 const MIN_LINE_LENGTH = 10;
 const MAX_LINE_LENGTH = 100;
 const MIN_XY_DISTANCE_FROM_CAMERA = 2;
 const MAX_XY_DISTANCE_FROM_CAMERA = 20;
-const MAX_Z_DISTANCE_FROM_CAMERA = 50;
+const MIN_Z_REGEN_DISTANCE_FROM_CAMERA = 50;
 const LINE_COUNT = 1200;
 const CAMERA_PATH_AVOIDANCE_ANGLE = Math.PI / 8;
 const CAMERA_SPEED = 10;
 const Z_LOOKBEHIND = 30;
 
-// Line component with cylindrical geometry and more opaque material
-function Line({ position, rotation, length, color }) {
+function Line({ position, rotation, length, color, zOffset }) {
 	const meshRef = useRef();
 
-	// Update function to check if line is behind camera and respawn it
 	useFrame(({ camera }) => {
 		if (!meshRef.current) return;
 
 		const lineZ = meshRef.current.position.z;
 		const cameraZ = camera.position.z;
 
-		// If line is behind camera, respawn it in the distance
+		// If the line is behind the camera, respawn it in the distance.
 		if (lineZ > cameraZ + Z_LOOKBEHIND) {
-			// Generate new position that doesn't intersect Z axis
-			const [x, y, z, r] = generateSafeLineMidpoint(cameraZ);
+			const z =
+				cameraZ - MIN_Z_REGEN_DISTANCE_FROM_CAMERA + ((cameraZ - zOffset) % MIN_Z_REGEN_DISTANCE_FROM_CAMERA);
+			const [x, y, r] = generateSafeLineMidpoint(z);
 
 			meshRef.current.position.set(x, y, z);
 			meshRef.current.rotation.set(0, 0, r);
@@ -65,14 +62,7 @@ function getXYFromZ(z: number) {
 }
 
 // Generate a midpoint position and rotation that won’t intersect the camera path.
-function generateSafeLineMidpoint(cameraZ = 0) {
-	const isInitialDraw = cameraZ === 0;
-	const z =
-		cameraZ -
-		(isInitialDraw
-			? (MAX_Z_DISTANCE_FROM_CAMERA + Z_LOOKBEHIND) * Math.random() - Z_LOOKBEHIND
-			: MAX_Z_DISTANCE_FROM_CAMERA);
-
+function generateSafeLineMidpoint(z: number) {
 	const [eventualCameraX, eventualCameraY] = getXYFromZ(z);
 
 	// Draw the line's midpoint at a random angle and distance from the camera's path, then
@@ -88,31 +78,33 @@ function generateSafeLineMidpoint(cameraZ = 0) {
 	const midpointY = eventualCameraY + Math.sin(midpointAngle) * midpointDistance;
 
 	// Adjust the rotation angle for correct cylinder rotation.
-	return [midpointX, midpointY, z, lineAngle - Math.PI / 2];
+	return [midpointX, midpointY, lineAngle - Math.PI / 2];
 }
 
 function LineCollection({ count = LINE_COUNT }) {
 	// Generate initial lines.
-	const lines = useMemo(() => {
-		const items = [];
+	const lines = useMemo(
+		() =>
+			Array.from({ length: count }, (_, i) => {
+				const length = MIN_LINE_LENGTH + Math.random() * (MAX_LINE_LENGTH - MIN_LINE_LENGTH);
+				const zOffset = (MIN_Z_REGEN_DISTANCE_FROM_CAMERA + Z_LOOKBEHIND) * Math.random();
+				const z = Z_LOOKBEHIND - zOffset;
 
-		for (let i = 0; i < count; i++) {
-			const length = MIN_LINE_LENGTH + Math.random() * (MAX_LINE_LENGTH - MIN_LINE_LENGTH);
-			const [x, y, z, r] = generateSafeLineMidpoint();
-			const colorIndex = Math.floor(Math.random() * COLORS.lines.length);
-			const color = COLORS.lines[colorIndex];
+				const [x, y, r] = generateSafeLineMidpoint(z);
+				const colorIndex = Math.floor(Math.random() * COLORS.lines.length);
+				const color = COLORS.lines[colorIndex];
 
-			items.push({
-				id: i,
-				position: [x, y, z],
-				rotation: [0, 0, r],
-				length: length,
-				color: color,
-			});
-		}
-
-		return items;
-	}, [count]);
+				return {
+					id: i,
+					position: [x, y, z],
+					rotation: [0, 0, r],
+					length: length,
+					color: color,
+					zOffset,
+				};
+			}),
+		[count]
+	);
 
 	return (
 		<group>
@@ -123,6 +115,7 @@ function LineCollection({ count = LINE_COUNT }) {
 					rotation={line.rotation}
 					length={line.length}
 					color={line.color}
+					zOffset={line.zOffset}
 				/>
 			))}
 		</group>
@@ -135,15 +128,9 @@ function LeadingLight({ intensity }: { intensity: number }) {
 
 	useFrame(state => {
 		if (!lightRef.current) return;
-
-		const t = state.clock.elapsedTime;
-
-		// Calculate position a half second ahead of current time
-		const futureTime = t + 0.5;
+		const futureTime = state.clock.elapsedTime + 0.5;
 		const futureZ = -futureTime * CAMERA_SPEED;
 		const [futureX, futureY] = getXYFromZ(futureZ);
-
-		// Update light position
 		lightRef.current.position.set(futureX, futureY, futureZ);
 	});
 
