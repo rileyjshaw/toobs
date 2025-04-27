@@ -47,9 +47,9 @@ interface RingProps {
 function getPosition(distanceAlongTrack: number): [number, number, number] {
 	const progress = distanceAlongTrack * PI2;
 	return [
-		Math.sin(progress / 2 - PI_OVER_4) * 400,
-		Math.sin(progress / 3 + PI_OVER_4) * 400,
-		Math.cos(progress / 5) * 400,
+		Math.sin(progress / 9 - PI_OVER_4) * 800 * Math.sin(progress / 5),
+		Math.sin(progress / 7 + PI_OVER_4) * 400,
+		Math.cos(progress / 8) * Math.cos(progress / 20) * 1200,
 	];
 }
 
@@ -160,8 +160,8 @@ function LeadingSpheres() {
 			const distFromNextSphere = (t % SPHERE_PASSING_PERIOD_S) / SPHERE_PASSING_PERIOD_S;
 			const futureTime = t + SPHERE_SPACING * i - distFromNextSphere * SPHERE_SPACING;
 			const [x, y, z] = getPositionFromTime(futureTime);
-			const xOffset = Math.cos(Math.PI * 2 * (distFromNextSphere + n / N_LEADING_SPHERES)) * 0.25;
-			const yOffset = Math.sin(Math.PI * 2 * (distFromNextSphere + n / N_LEADING_SPHERES)) * 0.25;
+			const xOffset = Math.cos(PI2 * (distFromNextSphere + n / N_LEADING_SPHERES)) * 0.25;
+			const yOffset = Math.sin(PI2 * (distFromNextSphere + n / N_LEADING_SPHERES)) * 0.25;
 			sphere.position.set(x + xOffset, y + yOffset, z);
 			sphere.rotation.set(0, t, 0);
 		});
@@ -220,7 +220,7 @@ export default function Scene() {
 
 	return (
 		<>
-			<PerspectiveCamera makeDefault position={[0, 0, 10]} fov={75} near={0.1} far={1000} />
+			<PerspectiveCamera makeDefault position={[0, 0, 0]} fov={75} near={0.1} far={100} />
 			<CameraController />
 			<LeadingLight intensity={0.03} />
 			<ambientLight intensity={0.6} />

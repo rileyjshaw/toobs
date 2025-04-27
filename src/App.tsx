@@ -1,6 +1,7 @@
 'use client';
 
 import { Canvas } from '@react-three/fiber';
+import handleTouch from './util/handleTouch';
 import { Primary, Rings, Toobs } from './scenes';
 import { EffectComposer } from './effects';
 import { Suspense, useState, useEffect } from 'react';
@@ -26,7 +27,27 @@ export default function Home() {
 	const Scene = scenes[sceneIdx];
 
 	return (
-		<div style={{ height: '100vh', width: '100vw' }}>
+		<div
+			ref={element => {
+				if (!element) return;
+
+				const cleanupFn = handleTouch(element, (direction, diff) => {
+					if (direction === 'x') {
+						if (diff > 0) {
+							// Right swipe
+							setSceneIdx(prev => (prev + 1) % scenes.length);
+						} else {
+							// Left swipe
+							setSceneIdx(prev => (prev + scenes.length - 1) % scenes.length);
+						}
+						return { skip: true }; // Only process one swipe at a time
+					}
+				});
+
+				return cleanupFn;
+			}}
+			style={{ height: '100vh', width: '100vw' }}
+		>
 			<Canvas dpr={[1, 1.5]}>
 				<Suspense fallback={null}>
 					<Scene />

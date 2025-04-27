@@ -200,7 +200,7 @@ export default function Scene() {
 
 	return (
 		<>
-			<PerspectiveCamera makeDefault position={[0, 0, 10]} fov={75} near={0.1} far={1000} />
+			<PerspectiveCamera makeDefault position={[0, 0, 0]} fov={75} near={0.1} far={100} />
 			<CameraController />
 			<LeadingLight intensity={1} />
 			<ambientLight intensity={0.6} />
