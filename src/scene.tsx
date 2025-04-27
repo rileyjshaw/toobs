@@ -20,6 +20,7 @@ const MAX_Z_REGEN_DISTANCE_FROM_CAMERA = 60;
 const LINE_COUNT = 40;
 const CAMERA_PATH_AVOIDANCE_ANGLE = Math.PI / 8;
 const CAMERA_SPEED = 10;
+const CAMERA_FRAME_HISTORY = 20;
 const D_FOG_MIN = 20;
 const D_FOG_MAX = 40;
 
@@ -143,16 +144,22 @@ function LeadingLight({ intensity }: { intensity: number }) {
 
 function CameraController() {
 	const { camera } = useThree();
-	const prevPosition = useRef(new Vector3());
+	// Store your last 5 positions in a ring buffer; the camera will look from
+	// where you were 5 frames ago to where you are now.
+	const prevPositions = useRef(Array.from({ length: CAMERA_FRAME_HISTORY }, () => new Vector3(...getXYFromZ(0), 0)));
 	// Initial direction is looking into the screen.
 	const direction = useRef(new Vector3(0, 0, -1));
 	const lookAtTarget = useRef(new Vector3());
 
-	useFrame(state => {
-		const t = state.clock.elapsedTime;
+	let frameCount = 0;
+	useFrame((state, delta) => {
+		if (delta > 2) {
+			prevPositions.current.forEach(pos => pos.copy(camera.position));
+			return;
+		}
 
-		// Store previous position for direction calculation.
-		prevPosition.current.copy(camera.position);
+		const t = state.clock.elapsedTime;
+		const prevPosition = prevPositions.current[frameCount % CAMERA_FRAME_HISTORY];
 
 		const z = -t * CAMERA_SPEED;
 		const [x, y] = getXYFromZ(z);
@@ -160,9 +167,12 @@ function CameraController() {
 		camera.position.y = y;
 		camera.position.z = z;
 
-		direction.current.subVectors(camera.position, prevPosition.current).normalize();
+		direction.current.subVectors(camera.position, prevPosition).normalize();
 		lookAtTarget.current.copy(camera.position).add(direction.current);
 		camera.lookAt(lookAtTarget.current);
+
+		++frameCount;
+		prevPosition.copy(camera.position);
 	});
 
 	return null;
