@@ -16,15 +16,15 @@ const MIN_LINE_LENGTH = 10;
 const MAX_LINE_LENGTH = 100;
 const MIN_XY_DISTANCE_FROM_CAMERA = 2;
 const MAX_XY_DISTANCE_FROM_CAMERA = 20;
-const MAX_Z_REGEN_DISTANCE_FROM_CAMERA = 100;
+const MAX_Z_REGEN_DISTANCE_FROM_CAMERA = 60;
 const LINE_COUNT = 40;
 const CAMERA_PATH_AVOIDANCE_ANGLE = Math.PI / 8;
 const CAMERA_SPEED = 10;
-const Z_LOOKBEHIND = 20;
 const D_FOG_MIN = 20;
 const D_FOG_MAX = 40;
 
 // Derived.
+const Z_LOOKBEHIND = MAX_Z_REGEN_DISTANCE_FROM_CAMERA - 1 - D_FOG_MAX;
 const TUBE_PLACEMENT_RANGE_Z = MAX_Z_REGEN_DISTANCE_FROM_CAMERA + Z_LOOKBEHIND;
 
 function Line({ position, rotation, length, color, zOffset }) {
@@ -62,7 +62,7 @@ function Line({ position, rotation, length, color, zOffset }) {
 }
 
 function getXYFromZ(z: number) {
-	return [Math.sin(z / 40) * 50, Math.cos(z / 33) * 50];
+	return [Math.sin(z / 31 - Math.PI / 4) * 40, Math.sin(z / 30 - Math.PI / 4) * 40];
 }
 
 // Generate a midpoint position and rotation that won’t intersect the camera path.
