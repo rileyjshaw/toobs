@@ -2,13 +2,13 @@
 
 import { useRef, useMemo, useEffect } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
-import { Color, Fog, Vector3 } from 'three';
-import { PerspectiveCamera } from '@react-three/drei';
+import { Color, Fog, Vector3, Group, Mesh, PointLight } from 'three';
+import { MeshTransmissionMaterial, PerspectiveCamera } from '@react-three/drei';
 
 const COLORS = {
 	background: '#000',
 	light: '#ffe0b3',
-	lines: ['#19011a', '#5c4cbf', '#4f67ff', '#ffebd8', '#ffb366', '#ff7f00'],
+	lines: ['#19011a', '#fb0', '#f00', '#00f'],
 };
 
 const LINE_WIDTH = 1;
@@ -23,13 +23,24 @@ const CAMERA_SPEED = 10;
 const CAMERA_FRAME_HISTORY = 20;
 const D_FOG_MIN = 20;
 const D_FOG_MAX = 40;
+const N_LEADING_SPHERES = 4;
+const SPHERE_PASSING_PERIOD_S = 8;
+const SPHERE_SPACING = 0.3;
 
 // Derived.
 const Z_LOOKBEHIND = MAX_Z_REGEN_DISTANCE_FROM_CAMERA - 1 - D_FOG_MAX;
 const TUBE_PLACEMENT_RANGE_Z = MAX_Z_REGEN_DISTANCE_FROM_CAMERA + Z_LOOKBEHIND;
 
-function Line({ position, rotation, length, color, zOffset }) {
-	const meshRef = useRef();
+interface LineProps {
+	position: [number, number, number];
+	rotation: [number, number, number];
+	length: number;
+	color: string;
+	zOffset: number;
+}
+
+function Line({ position, rotation, length, color, zOffset }: LineProps) {
+	const meshRef = useRef<Mesh>(null);
 
 	useFrame(({ camera }) => {
 		if (!meshRef.current) return;
@@ -85,10 +96,13 @@ function generateSafeLineMidpoint(z: number) {
 	// Adjust the rotation angle for correct cylinder rotation.
 	return [midpointX, midpointY, lineAngle - Math.PI / 2];
 }
+interface LineData extends LineProps {
+	key: number;
+}
 
 function LineCollection({ count = LINE_COUNT }) {
 	// Generate initial lines.
-	const lines = useMemo(
+	const lineProps = useMemo<LineData[]>(
 		() =>
 			Array.from({ length: count }, (_, i) => {
 				const length = MIN_LINE_LENGTH + Math.random() * (MAX_LINE_LENGTH - MIN_LINE_LENGTH);
@@ -100,7 +114,7 @@ function LineCollection({ count = LINE_COUNT }) {
 				const color = COLORS.lines[colorIndex];
 
 				return {
-					id: i,
+					key: i,
 					position: [x, y, z],
 					rotation: [0, 0, r],
 					length: length,
@@ -113,15 +127,8 @@ function LineCollection({ count = LINE_COUNT }) {
 
 	return (
 		<group>
-			{lines.map(line => (
-				<Line
-					key={line.id}
-					position={line.position}
-					rotation={line.rotation}
-					length={line.length}
-					color={line.color}
-					zOffset={line.zOffset}
-				/>
+			{lineProps.map(props => (
+				<Line {...props} />
 			))}
 		</group>
 	);
@@ -129,7 +136,7 @@ function LineCollection({ count = LINE_COUNT }) {
 
 // Point light that stays ahead of the camera.
 function LeadingLight({ intensity }: { intensity: number }) {
-	const lightRef = useRef();
+	const lightRef = useRef<PointLight>(null);
 
 	useFrame(state => {
 		if (!lightRef.current) return;
@@ -140,6 +147,51 @@ function LeadingLight({ intensity }: { intensity: number }) {
 	});
 
 	return <pointLight ref={lightRef} color={COLORS.light} intensity={intensity} distance={30} decay={1} />;
+}
+
+function LeadingSpheres() {
+	const groupRef = useRef<Group>(null);
+	const spheresRef = useRef<Mesh[]>([]);
+
+	useFrame(state => {
+		const t = state.clock.elapsedTime;
+		if (!groupRef.current) return;
+		spheresRef.current.forEach((sphere, i) => {
+			if (!sphere) return;
+			const nSpheresPassed = Math.floor(t / SPHERE_PASSING_PERIOD_S);
+			const n = (i + nSpheresPassed) % N_LEADING_SPHERES; // Consistent ID for spheres, since they’re re-rendered in a ring.
+
+			const distFromNextSphere = (t % SPHERE_PASSING_PERIOD_S) / SPHERE_PASSING_PERIOD_S;
+			const futureTime = t + SPHERE_SPACING * i - distFromNextSphere * SPHERE_SPACING;
+			const futureZ = -futureTime * CAMERA_SPEED;
+			const [futureX, futureY] = getXYFromZ(futureZ);
+			const xOffset = Math.cos(Math.PI * 2 * (distFromNextSphere + n / N_LEADING_SPHERES)) * 0.25;
+			const yOffset = Math.sin(Math.PI * 2 * (distFromNextSphere + n / N_LEADING_SPHERES)) * 0.25;
+			sphere.position.set(futureX + xOffset, futureY + yOffset, futureZ);
+			sphere.rotation.set(0, t, 0);
+		});
+	});
+
+	return (
+		<group ref={groupRef}>
+			{Array.from({ length: N_LEADING_SPHERES }).map((_, i) => (
+				<mesh key={i} ref={el => (spheresRef.current[i] = el!)}>
+					<sphereGeometry args={[0.1, 1, 1]} />
+					<MeshTransmissionMaterial
+						thickness={2}
+						chromaticAberration={1}
+						anisotropicBlur={0.1}
+						iridescence={1}
+						iridescenceIOR={1}
+						iridescenceThicknessRange={[800, 1400]}
+						clearcoatRoughness={1}
+						clearcoat={0.5}
+						envMapIntensity={1}
+					/>
+				</mesh>
+			))}
+		</group>
+	);
 }
 
 function CameraController() {
@@ -179,7 +231,11 @@ function CameraController() {
 }
 
 export default function Scene() {
-	const { scene } = useThree();
+	const { clock, scene } = useThree();
+
+	useEffect(() => {
+		clock.elapsedTime = 0;
+	}, []);
 
 	useEffect(() => {
 		scene.background = new Color(COLORS.background);
@@ -195,6 +251,7 @@ export default function Scene() {
 			<CameraController />
 			<LeadingLight intensity={1} />
 			<ambientLight intensity={0.6} />
+			<LeadingSpheres />
 			<LineCollection count={LINE_COUNT} />
 		</>
 	);
