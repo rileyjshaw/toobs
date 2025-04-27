@@ -16,11 +16,13 @@ const MIN_LINE_LENGTH = 10;
 const MAX_LINE_LENGTH = 100;
 const MIN_XY_DISTANCE_FROM_CAMERA = 2;
 const MAX_XY_DISTANCE_FROM_CAMERA = 20;
-const MIN_Z_REGEN_DISTANCE_FROM_CAMERA = 50;
-const LINE_COUNT = 1200;
+const MAX_Z_REGEN_DISTANCE_FROM_CAMERA = 100;
+const LINE_COUNT = 40;
 const CAMERA_PATH_AVOIDANCE_ANGLE = Math.PI / 8;
 const CAMERA_SPEED = 10;
-const Z_LOOKBEHIND = 30;
+const Z_LOOKBEHIND = 20;
+const D_FOG_MIN = 20;
+const D_FOG_MAX = 40;
 
 function Line({ position, rotation, length, color, zOffset }) {
 	const meshRef = useRef();
@@ -31,10 +33,12 @@ function Line({ position, rotation, length, color, zOffset }) {
 		const lineZ = meshRef.current.position.z;
 		const cameraZ = camera.position.z;
 
-		// If the line is behind the camera, respawn it in the distance.
+		// If the line is behind the camera, respawn it in front.
 		if (lineZ > cameraZ + Z_LOOKBEHIND) {
 			const z =
-				cameraZ - MIN_Z_REGEN_DISTANCE_FROM_CAMERA + ((cameraZ - zOffset) % MIN_Z_REGEN_DISTANCE_FROM_CAMERA);
+				Math.floor(cameraZ / MAX_Z_REGEN_DISTANCE_FROM_CAMERA) * MAX_Z_REGEN_DISTANCE_FROM_CAMERA -
+				zOffset +
+				Z_LOOKBEHIND;
 			const [x, y, r] = generateSafeLineMidpoint(z);
 
 			meshRef.current.position.set(x, y, z);
@@ -87,8 +91,8 @@ function LineCollection({ count = LINE_COUNT }) {
 		() =>
 			Array.from({ length: count }, (_, i) => {
 				const length = MIN_LINE_LENGTH + Math.random() * (MAX_LINE_LENGTH - MIN_LINE_LENGTH);
-				const zOffset = (MIN_Z_REGEN_DISTANCE_FROM_CAMERA + Z_LOOKBEHIND) * Math.random();
-				const z = Z_LOOKBEHIND - zOffset;
+				const zOffset = (MAX_Z_REGEN_DISTANCE_FROM_CAMERA + Z_LOOKBEHIND) * Math.random();
+				const z = -zOffset;
 
 				const [x, y, r] = generateSafeLineMidpoint(z);
 				const colorIndex = Math.floor(Math.random() * COLORS.lines.length);
@@ -169,7 +173,7 @@ export default function Scene() {
 
 	useEffect(() => {
 		scene.background = new Color(COLORS.background);
-		scene.fog = new Fog(COLORS.background, 20, 40);
+		scene.fog = new Fog(COLORS.background, D_FOG_MIN, D_FOG_MAX);
 		return () => {
 			scene.fog = null;
 		};
