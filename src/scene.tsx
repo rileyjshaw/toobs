@@ -11,13 +11,13 @@ const COLORS = {
 	lines: ['#19011a', '#5c4cbf', '#4f67ff', '#ffebd8', '#ffb366', '#ff7f00'],
 };
 
-const LINE_WIDTH = 1.0;
-const MIN_LINE_LENGTH = 10;
-const MAX_LINE_LENGTH = 100;
+const LINE_WIDTH = 1;
+const MIN_LINE_LENGTH = 4;
+const MAX_LINE_LENGTH = 50;
 const MIN_XY_DISTANCE_FROM_CAMERA = 2;
 const MAX_XY_DISTANCE_FROM_CAMERA = 20;
 const MAX_Z_REGEN_DISTANCE_FROM_CAMERA = 60;
-const LINE_COUNT = 40;
+const LINE_COUNT = 80;
 const CAMERA_PATH_AVOIDANCE_ANGLE = Math.PI / 8;
 const CAMERA_SPEED = 10;
 const CAMERA_FRAME_HISTORY = 20;
