@@ -24,6 +24,9 @@ const Z_LOOKBEHIND = 20;
 const D_FOG_MIN = 20;
 const D_FOG_MAX = 40;
 
+// Derived.
+const TUBE_PLACEMENT_RANGE_Z = MAX_Z_REGEN_DISTANCE_FROM_CAMERA + Z_LOOKBEHIND;
+
 function Line({ position, rotation, length, color, zOffset }) {
 	const meshRef = useRef();
 
@@ -35,10 +38,7 @@ function Line({ position, rotation, length, color, zOffset }) {
 
 		// If the line is behind the camera, respawn it in front.
 		if (lineZ > cameraZ + Z_LOOKBEHIND) {
-			const z =
-				Math.floor(cameraZ / MAX_Z_REGEN_DISTANCE_FROM_CAMERA) * MAX_Z_REGEN_DISTANCE_FROM_CAMERA -
-				zOffset +
-				Z_LOOKBEHIND;
+			const z = Math.floor(cameraZ / TUBE_PLACEMENT_RANGE_Z) * TUBE_PLACEMENT_RANGE_Z - zOffset;
 			const [x, y, r] = generateSafeLineMidpoint(z);
 
 			meshRef.current.position.set(x, y, z);
@@ -91,7 +91,7 @@ function LineCollection({ count = LINE_COUNT }) {
 		() =>
 			Array.from({ length: count }, (_, i) => {
 				const length = MIN_LINE_LENGTH + Math.random() * (MAX_LINE_LENGTH - MIN_LINE_LENGTH);
-				const zOffset = (MAX_Z_REGEN_DISTANCE_FROM_CAMERA + Z_LOOKBEHIND) * Math.random();
+				const zOffset = TUBE_PLACEMENT_RANGE_Z * Math.random() - Z_LOOKBEHIND;
 				const z = -zOffset;
 
 				const [x, y, r] = generateSafeLineMidpoint(z);
