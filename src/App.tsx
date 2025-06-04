@@ -35,10 +35,10 @@ export default function Home() {
 					if (direction === 'x') {
 						if (diff > 0) {
 							// Right swipe
-							setSceneIdx(prev => (prev + 1) % scenes.length);
+							setSceneIdx(prev => (prev + scenes.length - 1) % scenes.length);
 						} else {
 							// Left swipe
-							setSceneIdx(prev => (prev + scenes.length - 1) % scenes.length);
+							setSceneIdx(prev => (prev + 1) % scenes.length);
 						}
 						return { skip: true }; // Only process one swipe at a time
 					}
@@ -46,7 +46,7 @@ export default function Home() {
 
 				return cleanupFn;
 			}}
-			style={{ height: '100vh', width: '100vw' }}
+			style={{ height: '100dvh', width: '100dvw' }}
 		>
 			<Canvas dpr={[1, 1.5]}>
 				<Suspense fallback={null}>
